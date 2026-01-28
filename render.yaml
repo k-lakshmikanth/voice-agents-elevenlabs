@@ -1,0 +1,16 @@
+# In your end2end directory, create render.yaml
+services:
+  - type: web
+    name: healthcare-orchestrator
+    runtime: python
+    region: oregon # or singapore, frankfurt, ohio
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT conv_orchestration:app
+    envVars:
+      - key: ELEVENLABS_API_KEY
+        value: sk_06e6c73daad95eb3c4c2720c3d3a90826feda326ce7c4f0c
+      - key: WEBHOOK_SECRET
+        value: wsec_4da0175bf4ecfc89ad4c909001c923a609069948c4dccf13fc1cf157b5e82b71
+      - key: SERVER_PORT
+        value: 5000

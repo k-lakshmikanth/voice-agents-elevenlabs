@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Agent Conversation Client</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            font-weight: 300;
+        }
+
+        .status-bar {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.connected { background: #27ae60; }
+        .status-indicator.disconnected { background: #e74c3c; }
+        .status-indicator.active { background: #f39c12; }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        .agent-selection, .conversation-panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+
+        .agent-card {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .agent-card:hover {
+            border-color: #3498db;
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+        }
+
+        .agent-card.selected {
+            border-color: #3498db;
+            background: #ebf5fb;
+        }
+
+        .agent-name {
+            font-weight: 600;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .agent-role {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+
+        .btn-primary:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .transcript {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        .message.agent {
+            background: #e3f2fd;
+            margin-right: 20%;
+        }
+
+        .message.user {
+            background: #f3e5f5;
+            margin-left: 20%;
+        }
+
+        .message-role {
+            font-weight: 600;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        .message-content {
+            color: #333;
+        }
+
+        .webhooks {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .webhook-item {
+            font-size: 0.85em;
+            padding: 5px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .webhook-item:last-child {
+            border-bottom: none;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+
+        .info-message {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .debug-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: #1e1e1e;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+        }
+
+        .debug-panel.active {
+            display: block;
+        }
+
+        .debug-toggle {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: #333;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            z-index: 1001;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Healthcare Agent Conversation Client</h1>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="status-bar">
+            <div>
+                <span class="status-indicator disconnected" id="connectionStatus"></span>
+                <span id="connectionText">Disconnected</span>
+            </div>
+            <div>
+                Session: <span id="sessionId">None</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="agent-selection">
+                <h2>Select Agent</h2>
+                <div id="agentList">
+                    <div class="loading"></div>
+                </div>
+                
+                <div class="controls">
+                    <button id="startBtn" class="btn-primary" disabled>Start Conversation</button>
+                    <button id="endBtn" class="btn-danger" disabled>End Conversation</button>
+                </div>
+
+                <div class="webhooks">
+                    <h3>Webhook Events</h3>
+                    <div id="webhookLog"></div>
+                </div>
+            </div>
+
+            <div class="conversation-panel">
+                <h2>Conversation</h2>
+                <div id="messages" class="info-message">
+                    Select an agent and click "Start Conversation" to begin
+                </div>
+                
+                <div class="transcript" id="transcript" style="display: none;">
+                    <!-- Messages will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="debug-toggle" onclick="toggleDebug()">Debug</div>
+    <div class="debug-panel" id="debugPanel"></div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script type="module">
+        import { Conversation } from 'https://cdn.jsdelivr.net/npm/@11labs/client@latest/+esm';
+        
+        // Global state
+        window.state = {
+            socket: null,
+            selectedAgent: null,
+            sessionId: null,
+            conversationId: null,
+            conversation: null,
+            config: null
+        };
+
+        // Debug logging
+        window.debugLog = function(message, data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const debugPanel = document.getElementById('debugPanel');
+            const entry = document.createElement('div');
+            entry.textContent = `[${timestamp}] ${message}`;
+            if (data) {
+                entry.textContent += ` - ${JSON.stringify(data)}`;
+            }
+            debugPanel.appendChild(entry);
+            debugPanel.scrollTop = debugPanel.scrollHeight;
+            console.log(message, data);
+        };
+
+        window.toggleDebug = function() {
+            const panel = document.getElementById('debugPanel');
+            panel.classList.toggle('active');
+        };
+
+        // Initialize the application
+        async function init() {
+            try {
+                debugLog('Initializing application');
+                
+                // Fetch configuration
+                const response = await fetch('/api/config');
+                window.state.config = await response.json();
+                debugLog('Configuration loaded', window.state.config);
+                
+                // Load agents
+                await loadAgents();
+                
+                // Connect to WebSocket
+                connectWebSocket();
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showError('Failed to initialize application');
+            }
+        }
+
+        // Load available agents
+        async function loadAgents() {
+            try {
+                debugLog('Loading agents');
+                const response = await fetch('/api/agents');
+                const data = await response.json();
+                
+                const agentList = document.getElementById('agentList');
+                agentList.innerHTML = '';
+                
+                data.agents.forEach(agent => {
+                    const card = createAgentCard(agent);
+                    agentList.appendChild(card);
+                });
+                debugLog('Agents loaded', data.agents);
+            } catch (error) {
+                console.error('Failed to load agents:', error);
+                showError('Failed to load agents');
+            }
+        }
+
+        // Create agent card element
+        function createAgentCard(agent) {
+            const card = document.createElement('div');
+            card.className = 'agent-card';
+            card.innerHTML = `
+                <div class="agent-name">${agent.name}</div>
+                <div class="agent-role">${agent.role}</div>
+            `;
+            
+            card.onclick = () => selectAgent(agent, card);
+            return card;
+        }
+
+        // Select an agent
+        function selectAgent(agent, cardElement) {
+            document.querySelectorAll('.agent-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            cardElement.classList.add('selected');
+            window.state.selectedAgent = agent;
+            
+            document.getElementById('startBtn').disabled = false;
+            debugLog('Agent selected', agent);
+        }
+
+        // Connect to WebSocket
+        function connectWebSocket() {
+            window.state.socket = io(window.state.config.websocket_url);
+            
+            window.state.socket.on('connect', () => {
+                updateConnectionStatus(true);
+                debugLog('Connected to orchestration server');
+            });
+            
+            window.state.socket.on('disconnect', () => {
+                updateConnectionStatus(false);
+                debugLog('Disconnected from orchestration server');
+            });
+            
+            window.state.socket.on('webhook_update', (data) => {
+                handleWebhookUpdate(data);
+            });
+            
+            window.state.socket.on('error', (data) => {
+                showError(data.message);
+            });
+        }
+
+        // Update connection status UI
+        function updateConnectionStatus(connected) {
+            const indicator = document.getElementById('connectionStatus');
+            const text = document.getElementById('connectionText');
+            
+            if (connected) {
+                indicator.className = 'status-indicator connected';
+                text.textContent = 'Connected';
+            } else {
+                indicator.className = 'status-indicator disconnected';
+                text.textContent = 'Disconnected';
+            }
+        }
+
+        // Start conversation
+        window.startConversation = async function() {
+            if (!window.state.selectedAgent) {
+                showError('Please select an agent');
+                return;
+            }
+
+            try {
+                debugLog('Starting conversation');
+                
+                // Create session
+                const response = await fetch('/api/sessions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ agent_key: window.state.selectedAgent.key })
+                });
+                
+                const sessionData = await response.json();
+                window.state.sessionId = sessionData.session_id;
+                
+                debugLog('Session created', sessionData);
+                
+                // Update UI
+                document.getElementById('sessionId').textContent = window.state.sessionId;
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('endBtn').disabled = false;
+                
+                // Join session room
+                window.state.socket.emit('join_session', { session_id: window.state.sessionId });
+                
+                // Show transcript area
+                document.getElementById('messages').style.display = 'none';
+                document.getElementById('transcript').style.display = 'block';
+                document.getElementById('transcript').innerHTML = '<div class="info-message">Initializing conversation...</div>';
+                
+                // Initialize ElevenLabs conversation
+                await initializeElevenLabsConversation();
+                
+            } catch (error) {
+                console.error('Failed to start conversation:', error);
+                showError('Failed to start conversation');
+            }
+        }
+
+        // Initialize ElevenLabs conversation
+        async function initializeElevenLabsConversation() {
+            try {
+                debugLog('Initializing ElevenLabs conversation');
+                document.getElementById('transcript').innerHTML = '<div class="info-message">Requesting microphone access...</div>';
+                
+                // Get dynamic variables for the agent
+                const dynamicVariables = await getDynamicVariables(window.state.selectedAgent.key);
+                debugLog('Dynamic variables', dynamicVariables);
+                
+                // Create conversation configuration
+                const conversationConfig = {
+                    agentId: window.state.selectedAgent.agent_id,
+                    apiKey: window.state.config.elevenlabs_api_key,
+                    onConnect: ({ conversationId }) => {
+                        debugLog('Connected to ElevenLabs', { conversationId });
+                        document.getElementById('transcript').innerHTML = '<div class="info-message">Connected! Start speaking...</div>';
+                        
+                        // Notify server of conversation ID
+                        window.state.conversationId = conversationId;
+                        window.state.socket.emit('conversation_started', {
+                            session_id: window.state.sessionId,
+                            conversation_id: conversationId
+                        });
+                    },
+                    onDisconnect: () => {
+                        debugLog('Disconnected from ElevenLabs');
+                        addMessageToTranscript({ role: 'system', message: 'Conversation ended' });
+                    },
+                    onMessage: ({ message, source }) => {
+                        debugLog('Message received', { source, message });
+                        if (source) {
+                            addMessageToTranscript({ role: source.toLowerCase(), message });
+                        }
+                    },
+                    onError: (error) => {
+                        debugLog('ElevenLabs error', error);
+                        showError('Conversation error: ' + (error.message || 'Unknown error'));
+                    },
+                    onStatusChange: ({ status }) => {
+                        debugLog('Status change', { status });
+                    },
+                    onModeChange: ({ mode }) => {
+                        debugLog('Mode change', { mode });
+                    }
+                };
+
+                // Add dynamic variables if available
+                if (dynamicVariables && Object.keys(dynamicVariables).length > 0) {
+                    conversationConfig.dynamicVariables = dynamicVariables;
+                }
+
+                // Start the conversation
+                debugLog('Starting ElevenLabs session');
+                window.state.conversation = await Conversation.startSession(conversationConfig);
+                
+                debugLog('Conversation started successfully');
+                
+            } catch (error) {
+                console.error('Failed to initialize ElevenLabs conversation:', error);
+                debugLog('Conversation initialization error', error);
+                showError('Failed to initialize conversation: ' + (error.message || 'Please check your API key and agent configuration'));
+            }
+        }
+
+        // Get dynamic variables for agent
+        async function getDynamicVariables(agentKey) {
+            // This would normally fetch from your API
+            // For now, using hardcoded values matching your dynamic_variables.json
+            const variables = {
+                clara: {},
+                marcus: {
+                    patient_name: "Ben Tennyson",
+                    patient_dob: "03/15/1952",
+                    auth_number: "AUTH-2025-78910",
+                    auth_status: "APPROVED",
+                    approved_services: "Skilled nursing care, wound management, diabetes monitoring, medication administration",
+                    diagnosis_code: "C95.1, E11.9, I10",
+                    diagnosis: "Hematologic malignancy with diabetes and hypertension",
+                    correspondence_number: "(555) 987-6543"
+                },
+                sarah: {
+                    patient_name: "Ben Tennyson",
+                    patient_dob: "03/15/1952",
+                    start_date: "January 15, 2025",
+                    facility_type: "skilled nursing facility",
+                    approved_services: "wound care, diabetes monitoring, and medication assistance",
+                    duration: "30 days"
+                },
+                david: {                                         // ← ADD THIS ENTIRE BLOCK
+                    health_plan_name: "Zyter Health Plan",
+                    provider_name: "Dr. Taylor",
+                    facility_name: "Beverly Hills Recovery Center",
+                    provider_npi: "8378258721",
+                    provider_zip: "90210", 
+                    patient_name: "John Doe",
+                    patient_dob: "January 15, 1975",
+                    member_id: "439753",
+                    admission_date: "July 21st",
+                    documentation_deadline: "July 24",
+                    required_documents: "most recent physical therapy notes and any relevant progress reports",
+                    secure_upload_link: "https://secure.zyterhealth.com/upload/auth_12345",
+                    facility_email: "records@beverlyhillsrecovery.com"
+                }
+            };
+            
+            return variables[agentKey] || {};
+        }
+
+        // Add message to transcript
+        function addMessageToTranscript(message) {
+            const transcript = document.getElementById('transcript');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${message.role}`;
+            messageDiv.innerHTML = `
+                <div class="message-role">${message.role === 'agent' ? window.state.selectedAgent.name : message.role === 'user' ? 'You' : 'System'}</div>
+                <div class="message-content">${message.message}</div>
+            `;
+            
+            transcript.appendChild(messageDiv);
+            transcript.scrollTop = transcript.scrollHeight;
+        }
+
+        // Handle webhook updates
+        function handleWebhookUpdate(data) {
+            debugLog('Webhook update', data);
+            
+            // Log webhook event
+            const webhookLog = document.getElementById('webhookLog');
+            const logItem = document.createElement('div');
+            logItem.className = 'webhook-item';
+            logItem.textContent = `${new Date().toLocaleTimeString()} - ${data.type}`;
+            webhookLog.insertBefore(logItem, webhookLog.firstChild);
+            
+            // Keep only last 10 events
+            while (webhookLog.children.length > 10) {
+                webhookLog.removeChild(webhookLog.lastChild);
+            }
+            
+            // Handle specific webhook types
+            if (data.type === 'conversation.completed') {
+                showInfo('Conversation completed');
+                endConversation();
+            }
+        }
+
+        // End conversation
+        window.endConversation = async function() {
+            debugLog('Ending conversation');
+            
+            if (window.state.conversation) {
+                try {
+                    await window.state.conversation.endSession();
+                } catch (error) {
+                    console.error('Error ending conversation:', error);
+                }
+                window.state.conversation = null;
+            }
+            
+            if (window.state.sessionId) {
+                window.state.socket.emit('leave_session', { session_id: window.state.sessionId });
+            }
+            
+            // Reset UI
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('endBtn').disabled = true;
+            document.getElementById('sessionId').textContent = 'None';
+            document.getElementById('messages').style.display = 'block';
+            document.getElementById('transcript').style.display = 'none';
+            
+            window.state.sessionId = null;
+            window.state.conversationId = null;
+        }
+
+        // Show error message
+        function showError(message) {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = `<div class="error-message">${message}</div>`;
+            messagesDiv.style.display = 'block';
+        }
+
+        // Show info message
+        function showInfo(message) {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = `<div class="info-message">${message}</div>`;
+            messagesDiv.style.display = 'block';
+        }
+
+        // Event listeners
+        document.getElementById('startBtn').onclick = window.startConversation;
+        document.getElementById('endBtn').onclick = window.endConversation;
+
+        // Initialize on load
+        window.onload = init;
+    </script>
+</body>
+</html>
